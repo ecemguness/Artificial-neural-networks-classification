@@ -1,0 +1,77 @@
+---
+title: "Classification"
+output: html_document
+---
+
+```{r}
+library(readr)
+vgsales <- read_delim("vgsales.csv", ";", 
+    escape_double = FALSE, trim_ws = TRUE)
+View(vgsales)
+```
+```{r}
+vgsales_womiss<-na.omit(vgsales)
+```
+
+```{r}
+###Basit Doldurma Yontemleri###
+#ortalama ile atama 
+vgsales_ort<-vgsales_womiss
+hist(vgsales_ort$Global_Sales)
+vgsales_ort$Global_Sales[is.na(vgsales_ort$Global_Sales)]<-mean(vgsales_ort$Global_Sales,na.rm=TRUE)#eksik gozlem varken problem olmamasi icin True eklendi
+#data_ort$Age[is.na(data_ort$Age)]<-median(data_ort$Age,na.rm=TRUE)
+```
+
+```{r}
+library(caret)
+set.seed(74367432)
+train_id<-createDataPartition(vgsales_womiss$Global_Sales, p=0.80,
+                              list=FALSE,
+                              times=1)
+train<-vgsales_womiss[train_id,]
+test<-vgsales_womiss[-train_id,]
+```
+
+```{r}
+train$Global_Sales_log<-log(train$Global_Sales) #Global_Sales'de logaritmik dönüsüm
+train$EU_Sales_kok<-sqrt(train$EU_Sales) #EU_Sales'de kok dönüsümü
+train$EU_Sales_kok_merk<-(train$EU_Sales_kok-mean(train$EU_Sales_kok))
+```
+
+```{r}
+test$Global_Sales_log<-log(test$Global_Sales) #FEV'de logaritmik dönüsüm
+test$EU_Sales_kok<-sqrt(test$EU_Sales) #Age'de kok dönüsümü
+test$EU_Sales_kok_merk<-(test$EU_Sales_kok-mean(test$EU_Sales_kok))
+```
+
+```{r}
+train$Total<-ifelse(train$Global_Sales<=2.5,"Çok","Az")
+train$Total<-as.factor(train$Total)
+summary(train)
+```
+
+```{r}
+test$Total<-ifelse(test$Global_Sales<=2.5,"Çok","Az")
+test$Total<-as.factor(test$Total)
+summary(test)
+```
+
+```{r}
+#modelleme
+clsf_rpart<-rpart(Total~ EU_Sales_kok+JP_Sales +NA_Sales +Other_Sales, data=train, method="class")
+rpart.plot(clsf_rpart)
+```
+```{r}
+#Tablo üzerinden hata matrisi olusturalım - egitim icin:
+tb<-table(predict(clsf_rpart, train, type="class"),train$Total)
+confusionMatrix(tb,positive="Çok")
+```
+```{r}
+#test icin:
+tb2<-table(predict(clsf_rpart, test, type="class"),test$Total)
+confusionMatrix(tb2,positive="Çok")
+```
+```{r}
+
+```
+
